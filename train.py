@@ -67,6 +67,8 @@ np.random.seed(args.manualSeed)
 
 best_acc = 0  # best test accuracy
 
+torch.can_cast(torch.long, torch.float)
+
 def main():
     global best_acc
 
