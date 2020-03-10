@@ -379,8 +379,8 @@ class WeightEMA(object):
         self.model = model
         self.ema_model = ema_model
         self.alpha = alpha
-        self.params = list(model.state_dict().values())
-        self.ema_params = list(ema_model.state_dict().values())
+        self.params = list(model.state_dict().values()).float()
+        self.ema_params = list(ema_model.state_dict().values()).float()
         self.wd = 0.02 * args.lr
 
         for param, ema_param in zip(self.params, self.ema_params):
@@ -389,7 +389,6 @@ class WeightEMA(object):
     def step(self):
         one_minus_alpha = 1.0 - self.alpha
         for param, ema_param in zip(self.params, self.ema_params):
-            pdb.set_trace()
             ema_param.mul_(self.alpha)
             ema_param.add_(param * one_minus_alpha)
             # customized weight decay
