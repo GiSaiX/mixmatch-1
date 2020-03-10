@@ -218,7 +218,6 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         batch_size = inputs_x.size(0)
 
         # Transform label to one-hot
-        pdb.set_trace()
         targets_x = torch.zeros(batch_size, 10).scatter_(1, targets_x.view(-1,1), 1)
 
         if use_cuda:
@@ -245,6 +244,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         l = max(l, 1-l)
 
         idx = torch.randperm(all_inputs.size(0))
+        # KVN [192] an array consisting of numbers 0 - 191 in random orders
 
         input_a, input_b = all_inputs, all_inputs[idx]
         target_a, target_b = all_targets, all_targets[idx]
@@ -252,6 +252,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         mixed_input = l * input_a + (1 - l) * input_b
         mixed_target = l * target_a + (1 - l) * target_b
 
+        pdb.set_trace()
         # interleave labeled and unlabed samples between batches to get correct batchnorm calculation 
         mixed_input = list(torch.split(mixed_input, batch_size))
         mixed_input = interleave(mixed_input, batch_size)
