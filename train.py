@@ -218,6 +218,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         batch_size = inputs_x.size(0)
 
         # Transform label to one-hot
+        pdb.set_trace()
         targets_x = torch.zeros(batch_size, 10).scatter_(1, targets_x.view(-1,1), 1)
 
         if use_cuda:
