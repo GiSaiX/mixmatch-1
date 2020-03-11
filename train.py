@@ -252,7 +252,6 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         mixed_input = l * input_a + (1 - l) * input_b
         mixed_target = l * target_a + (1 - l) * target_b
 
-        pdb.set_trace()
         # interleave labeled and unlabed samples between batches to get correct batchnorm calculation 
         mixed_input = list(torch.split(mixed_input, batch_size))
         mixed_input = interleave(mixed_input, batch_size)
@@ -381,6 +380,7 @@ class WeightEMA(object):
         self.model = model
         self.ema_model = ema_model
         self.alpha = alpha
+        pdb.set_trace()
         self.params = list(model.state_dict().values())
         self.ema_params = list(ema_model.state_dict().values())
         self.wd = 0.02 * args.lr
