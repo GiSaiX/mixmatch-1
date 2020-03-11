@@ -380,9 +380,12 @@ class WeightEMA(object):
         self.model = model
         self.ema_model = ema_model
         self.alpha = alpha
-        pdb.set_trace()
-        self.params = list(model.state_dict().values())
-        self.ema_params = list(ema_model.state_dict().values())
+
+        params = list(model.state_dict().values())
+        ema_params = list(ema_model.state_dict().values())
+
+        self.params = list(map(lambda x: x.float(), params))
+        self.ema_params = list(map(lambda x: x.float(), ema_params))
         self.wd = 0.02 * args.lr
 
         for param, ema_param in zip(self.params, self.ema_params):
