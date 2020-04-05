@@ -21,7 +21,6 @@ import models.wideresnet as models
 import dataset.cifar10 as dataset
 from utils import Bar, Logger, AverageMeter, accuracy, mkdir_p, savefig
 from tensorboardX import SummaryWriter
-import pdb
 
 parser = argparse.ArgumentParser(description='PyTorch MixMatch Training')
 # Optimization options
@@ -53,8 +52,6 @@ parser.add_argument('--lambda-u', default=75, type=float)
 parser.add_argument('--T', default=0.5, type=float)
 parser.add_argument('--ema-decay', default=0.999, type=float)
 
-parser.add_argument('--sup-only', action='store_true')
-parser.add_argument('--early_stopping', default=0, type=int)
 
 args = parser.parse_args()
 state = {k: v for k, v in args._get_kwargs()}
@@ -141,16 +138,12 @@ def main():
     writer = SummaryWriter(args.out)
     step = 0
     test_accs = []
-    no_improvement = 0
     # Train and val
     for epoch in range(start_epoch, args.epochs):
 
         print('\nEpoch: [%d | %d] LR: %f' % (epoch + 1, args.epochs, state['lr']))
 
-        if args.sup_only:
-            train_loss, train_loss_x, train_loss_u = train_sup(labeled_trainloader, model, optimizer, ema_optimizer, criterion, epoch, use_cuda)
-        else:
-            train_loss, train_loss_x, train_loss_u = train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_optimizer, train_criterion, epoch, use_cuda)
+        train_loss, train_loss_x, train_loss_u = train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_optimizer, train_criterion, epoch, use_cuda)
         _, train_acc = validate(labeled_trainloader, ema_model, criterion, epoch, use_cuda, mode='Train Stats')
         val_loss, val_acc = validate(val_loader, ema_model, criterion, epoch, use_cuda, mode='Valid Stats')
         test_loss, test_acc = validate(test_loader, ema_model, criterion, epoch, use_cuda, mode='Test Stats ')
@@ -168,15 +161,6 @@ def main():
         # append logger file
         logger.append([train_loss, train_loss_x, train_loss_u, val_loss, val_acc, test_loss, test_acc])
 
-        # early stopping
-        if args.early_stopping:
-            if no_improvement >= args.early_stopping:
-                break
-            if val_acc > best_acc:
-                no_improvement = 0
-            else:
-                no_improvement += 1
-
         # save model
         is_best = val_acc > best_acc
         best_acc = max(val_acc, best_acc)
@@ -189,7 +173,6 @@ def main():
                 'optimizer' : optimizer.state_dict(),
             }, is_best)
         test_accs.append(test_acc)
-
     logger.close()
     writer.close()
 
@@ -199,62 +182,6 @@ def main():
     print('Mean acc:')
     print(np.mean(test_accs[-20:]))
 
-def train_sup(labeled_trainloader, model, optimizer, ema_optimizer, criterion, epoch, use_cuda):
-    batch_time = AverageMeter()
-    data_time = AverageMeter()
-    losses = AverageMeter()
-    end = time.time()
-
-    bar = Bar('Training', max=args.val_iteration)
-    labeled_train_iter = iter(labeled_trainloader)
-
-    model.train()
-    for batch_idx in range(args.val_iteration):
-        try:
-            inputs_x, targets_x = labeled_train_iter.next()
-        except:
-            labeled_train_iter = iter(labeled_trainloader)
-            inputs_x, targets_x = labeled_train_iter.next()
-
-        # measure data loading time
-        data_time.update(time.time() - end)
-
-        batch_size = inputs_x.size(0)
-
-        if use_cuda:
-            inputs_x, targets_x = inputs_x.cuda(), targets_x.cuda(non_blocking=True)
-
-        outputs = model(inputs_x)
-
-        loss = criterion(outputs, targets_x)
-
-        # record loss
-        losses.update(loss.item(), inputs_x.size(0))
-
-        # compute gradient and do SGD step
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        ema_optimizer.step()
-
-        # measure elapsed time
-        batch_time.update(time.time() - end)
-        end = time.time()
-
-        # plot progress
-        bar.suffix  = '({batch}/{size}) Data: {data:.3f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f}'.format(
-                    batch=batch_idx + 1,
-                    size=args.val_iteration,
-                    data=data_time.avg,
-                    bt=batch_time.avg,
-                    total=bar.elapsed_td,
-                    eta=bar.eta_td,
-                    loss=losses.avg,
-                    )
-        bar.next()
-    bar.finish()
-
-    return (losses.avg, 0, 0)
 
 def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_optimizer, criterion, epoch, use_cuda):
 
@@ -277,7 +204,6 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         except:
             labeled_train_iter = iter(labeled_trainloader)
             inputs_x, targets_x = labeled_train_iter.next()
-
 
         try:
             (inputs_u, inputs_u2), _ = unlabeled_train_iter.next()
@@ -317,7 +243,6 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         l = max(l, 1-l)
 
         idx = torch.randperm(all_inputs.size(0))
-        # KVN [192] an array consisting of numbers 0 - 191 in random orders
 
         input_a, input_b = all_inputs, all_inputs[idx]
         target_a, target_b = all_targets, all_targets[idx]
@@ -453,12 +378,8 @@ class WeightEMA(object):
         self.model = model
         self.ema_model = ema_model
         self.alpha = alpha
-
-        params = list(model.state_dict().values())
-        ema_params = list(ema_model.state_dict().values())
-
-        self.params = list(map(lambda x: x.float(), params))
-        self.ema_params = list(map(lambda x: x.float(), ema_params))
+        self.params = list(model.state_dict().values())
+        self.ema_params = list(ema_model.state_dict().values())
         self.wd = 0.02 * args.lr
 
         for param, ema_param in zip(self.params, self.ema_params):

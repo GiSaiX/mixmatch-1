@@ -5,7 +5,7 @@
 #SBATCH --time=12:00:00
 #SBATCH --job-name="mixmatch_official"
 
-source activate tf-gpu
+source activate mixmatch
 
 cd /scratch/wz1232/mixmatch
 $1
