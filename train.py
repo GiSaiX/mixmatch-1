@@ -54,6 +54,7 @@ parser.add_argument('--T', default=0.5, type=float)
 parser.add_argument('--ema-decay', default=0.999, type=float)
 
 parser.add_argument('--sup-only', action='store_true')
+parser.add_argument('--early_stopping', default=0, type=int)
 
 args = parser.parse_args()
 state = {k: v for k, v in args._get_kwargs()}
@@ -140,6 +141,7 @@ def main():
     writer = SummaryWriter(args.out)
     step = 0
     test_accs = []
+    no_improvement = 0
     # Train and val
     for epoch in range(start_epoch, args.epochs):
 
@@ -166,6 +168,15 @@ def main():
         # append logger file
         logger.append([train_loss, train_loss_x, train_loss_u, val_loss, val_acc, test_loss, test_acc])
 
+        # early stopping
+        if args.early_stopping:
+            if no_improvement >= args.early_stopping:
+                break
+            if val_acc > best_acc:
+                no_improvement = 0
+            else:
+                no_improvement += 1
+
         # save model
         is_best = val_acc > best_acc
         best_acc = max(val_acc, best_acc)
@@ -178,6 +189,7 @@ def main():
                 'optimizer' : optimizer.state_dict(),
             }, is_best)
         test_accs.append(test_acc)
+
     logger.close()
     writer.close()
 
