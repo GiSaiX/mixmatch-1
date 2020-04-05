@@ -53,7 +53,7 @@ parser.add_argument('--T', default=0.5, type=float)
 parser.add_argument('--ema-decay', default=0.999, type=float)
 
 parser.add_argument('--sup-only', action='store_true')
-parser.add_argument('--early_stopping', default=0, type=int)
+parser.add_argument('--early-stopping', default=0, type=int)
 
 
 args = parser.parse_args()
