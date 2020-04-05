@@ -1,6 +1,7 @@
 {
   "ExpandedNodes": [
-    ""
+    "",
+    "\\utils"
   ],
   "SelectedNode": "\\train.py",
   "PreviewInSolutionExplorer": false
