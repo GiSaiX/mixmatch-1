@@ -21,6 +21,7 @@ import models.wideresnet as models
 import dataset.cifar10 as dataset
 from utils import Bar, Logger, AverageMeter, accuracy, mkdir_p, savefig
 from tensorboardX import SummaryWriter
+import pdb
 
 parser = argparse.ArgumentParser(description='PyTorch MixMatch Training')
 # Optimization options
@@ -54,7 +55,6 @@ parser.add_argument('--ema-decay', default=0.999, type=float)
 
 parser.add_argument('--sup-only', action='store_true')
 parser.add_argument('--early_stopping', default=0, type=int)
-
 
 args = parser.parse_args()
 state = {k: v for k, v in args._get_kwargs()}
@@ -151,7 +151,6 @@ def main():
             train_loss, train_loss_x, train_loss_u = train_sup(labeled_trainloader, model, optimizer, ema_optimizer, criterion, epoch, use_cuda)
         else:
             train_loss, train_loss_x, train_loss_u = train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_optimizer, train_criterion, epoch, use_cuda)
-
         _, train_acc = validate(labeled_trainloader, ema_model, criterion, epoch, use_cuda, mode='Train Stats')
         val_loss, val_acc = validate(val_loader, ema_model, criterion, epoch, use_cuda, mode='Valid Stats')
         test_loss, test_acc = validate(test_loader, ema_model, criterion, epoch, use_cuda, mode='Test Stats ')
@@ -190,6 +189,7 @@ def main():
                 'optimizer' : optimizer.state_dict(),
             }, is_best)
         test_accs.append(test_acc)
+
     logger.close()
     writer.close()
 
@@ -278,6 +278,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
             labeled_train_iter = iter(labeled_trainloader)
             inputs_x, targets_x = labeled_train_iter.next()
 
+
         try:
             (inputs_u, inputs_u2), _ = unlabeled_train_iter.next()
         except:
@@ -316,6 +317,7 @@ def train(labeled_trainloader, unlabeled_trainloader, model, optimizer, ema_opti
         l = max(l, 1-l)
 
         idx = torch.randperm(all_inputs.size(0))
+        # KVN [192] an array consisting of numbers 0 - 191 in random orders
 
         input_a, input_b = all_inputs, all_inputs[idx]
         target_a, target_b = all_targets, all_targets[idx]
@@ -451,8 +453,12 @@ class WeightEMA(object):
         self.model = model
         self.ema_model = ema_model
         self.alpha = alpha
-        self.params = list(model.state_dict().values())
-        self.ema_params = list(ema_model.state_dict().values())
+
+        params = list(model.state_dict().values())
+        ema_params = list(ema_model.state_dict().values())
+
+        self.params = list(map(lambda x: x.float(), params))
+        self.ema_params = list(map(lambda x: x.float(), ema_params))
         self.wd = 0.02 * args.lr
 
         for param, ema_param in zip(self.params, self.ema_params):
